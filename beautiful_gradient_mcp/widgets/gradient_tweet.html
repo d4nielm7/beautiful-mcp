@@ -1,0 +1,455 @@
+﻿<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Gradient Tweet</title>
+  <style>
+    :root {
+      --card-bg: #fff;
+      --text: #0f1419;
+      --muted: #536471;
+      --link: #1d9bf0;
+      --shadow: 0 10px 30px rgba(0,0,0,0.15);
+      --radius: 16px;
+    }
+    html, body { height: 100%; }
+    body {
+      margin: 0;
+      font-family: -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Inter,Helvetica,Arial,sans-serif;
+      background: #f3f4f6;
+    }
+    .wrap {
+      min-height: 100%;
+      display: grid;
+      place-items: center;
+      padding: 20px;
+    }
+    .bg {
+      width: 900px;
+      min-height: 380px;
+      max-height: 600px;
+      padding: 40px;
+      border-radius: 24px;
+      background: linear-gradient(135deg,#FF6B6B,#FFE66D);
+      transition: background 200ms ease;
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      justify-content: space-between;
+      gap: 40px;
+      box-sizing: border-box;
+    }
+    .tweet-card {
+      background: var(--card-bg);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 24px 32px 20px;
+      width: 520px;
+      min-height: 200px;
+      max-height: 400px;
+      display: flex;
+      flex-direction: column;
+      box-sizing: border-box;
+      flex-shrink: 0;
+      overflow: hidden;
+    }
+    .controls-panel {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 20px;
+      flex-shrink: 0;
+    }
+    .tweet-content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+    }
+    .tweet-header {
+      flex: 0 0 50px;
+      display: flex;
+      align-items: center;
+    }
+    .tweet-main {
+      flex: 1;
+      display: flex;
+      align-items: flex-start;
+      justify-content: flex-start;
+      padding: 8px 0;
+      min-height: 0;
+      overflow: hidden;
+    }
+    .tweet-footer {
+      flex: 0 0 24px;
+      display: flex;
+      align-items: flex-end;
+    }
+    .row { display: flex; align-items: center; gap: 12px; }
+    .avatar { width: 44px; height: 44px; border-radius: 50%; object-fit: cover; }
+    .name { color: var(--text); font-weight: 700; }
+    .handle { color: var(--muted); }
+    .verified { color: #1d9bf0; margin-left: 4px; display:inline-flex; align-items:center; font-size:0; }
+    .verified::before { content:''; width:18px; height:18px; display:inline-block; background-repeat:no-repeat; background-position:center; background-size:contain; background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path fill='%231d9bf0' d='M12 2.25l2.39 1.3 2.63-.09 1.55 2.2 2.42 1.22-.5 2.6 1.42 2.19-1.9 1.9.2 2.63-2.5.94-1.37 2.24-2.62-.24-2.23 1.38-2.07-1.74-2.62.24-1.37-2.24-2.5-.94.2-2.63-1.9-1.9 1.42-2.19-.5-2.6 2.42-1.22 1.55-2.2 2.63.09L12 2.25z'/><path fill='%23fff' d='M10.2 13.5l-2-2 1.4-1.4 1.3 1.3 3.4-3.4 1.4 1.4-4.8 4.8z'/></svg>"); }
+    .content { 
+      color: var(--text); 
+      font-size: 20px; 
+      line-height: 1.3; 
+      white-space: pre-wrap; 
+      word-wrap: break-word;
+      width: 100%;
+      font-weight: 400;
+      max-height: 312px; 
+      overflow-y: auto;
+      overflow-x: hidden;
+    }
+    
+    /* Custom scrollbar for content area */
+    .content::-webkit-scrollbar {
+      width: 4px;
+    }
+    .content::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    .content::-webkit-scrollbar-thumb {
+      background: rgba(0,0,0,0.1);
+      border-radius: 2px;
+    }
+    .content::-webkit-scrollbar-thumb:hover {
+      background: rgba(0,0,0,0.2);
+    }
+    .meta { color: var(--muted); font-size: 14px; }
+    .meta a { color: var(--link); text-decoration: none; }
+    .controls { display: flex; flex-direction: column; gap: 15px; }
+    .controls .btn { background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; padding: 8px 12px; cursor: pointer; }
+    .controls .btn.primary { background: #1d9bf0; color: #fff; border-color: #1d9bf0; }
+    .sliders { display: flex; flex-direction: column; gap: 10px; align-items: flex-start; }
+    .sliders label { display: flex; flex-direction: column; gap: 5px; }
+    input[type="range"]{ accent-color:#1d9bf0; width: 120px; }
+    .color-bar { display: flex; flex-direction: column; gap: 10px; align-items: flex-start; margin-top: 10px; }
+    .color-bar label { display: flex; flex-direction: column; gap: 5px; font-size: 12px; color: var(--muted); }
+    .color-bar input[type="color"] { width: 120px; height: 40px; border: 1px solid rgba(0,0,0,0.1); border-radius: 6px; cursor: pointer; }
+    .grad-thumbs { display:none; gap:8px; flex-wrap:wrap; }
+    .grad-thumbs button { width: 28px; height: 28px; border-radius: 6px; border: 1px solid rgba(0,0,0,0.1); cursor:pointer; }
+  </style>
+  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+</head>
+<body>
+  <div class="wrap">
+    <div id="bg" class="bg">
+      <div id="card" class="tweet-card">
+        <div class="tweet-content">
+          <div class="tweet-header">
+            <div class="row">
+              <img id="avatar" class="avatar" src="https://abs.twimg.com/sticky/default_profile_images/default_profile_400x400.png" />
+              <div style="display:flex;flex-direction:column;">
+                <div style="display:flex;align-items:center;gap:6px;">
+                  <span id="name" class="name">Twitter User</span>
+                  <span id="verified" class="verified" title="Verified"></span>
+                </div>
+                <span id="handle" class="handle">@twitter_user</span>
+              </div>
+            </div>
+          </div>
+          <div class="tweet-main">
+            <div id="content" class="content">Type your tweet content</div>
+          </div>
+          <div class="tweet-footer">
+            <div class="meta"><span id="date"></span></div>
+          </div>
+        </div>
+      </div>
+      <div class="controls-panel">
+        <div class="controls">
+          <div class="sliders">
+            <label>Angle <input id="angle" type="range" min="0" max="360" value="135"></label>
+            <label>Mix <input id="mix" type="range" min="0" max="100" value="100"></label>
+          </div>
+          <button id="random" class="btn">Random</button>
+          <button id="download" class="btn">Download PNG</button>
+          <button id="share" class="btn primary">Share to X</button>
+        </div>
+        <div class="color-bar">
+          <label>Color 1 <input id="color1" type="color" value="#FF6B6B"></label>
+          <label>Color 2 <input id="color2" type="color" value="#FFE66D"></label>
+        </div>
+        <div id="gradThumbs" class="grad-thumbs"></div>
+      </div>
+    </div>
+  </div>
+  <script>
+    // All gradients - will be loaded dynamically from backend API
+    let ALL_GRADIENTS = [];
+    
+    // Fallback gradients in case API fails (all 25 gradients from gradients.py)
+    const FALLBACK_GRADIENTS = [
+      { name: 'Sunset Blaze', colors: ['#FF6B6B','#FFE66D'], angle: 135 },
+      { name: 'Ocean Deep', colors: ['#00D4FF','#0099FF'], angle: 180 },
+      { name: 'Forest Dawn', colors: ['#11998E','#38EF7D'], angle: 120 },
+      { name: 'Purple Haze', colors: ['#9D50BB','#6E48AA'], angle: 135 },
+      { name: 'Fire Burst', colors: ['#FF512F','#DD2476'], angle: 45 },
+      { name: 'Candy Floss', colors: ['#FFA8D5','#FF85E4'], angle: 90 },
+      { name: 'Northern Lights', colors: ['#00C9FF','#92FE9D'], angle: 45 },
+      { name: 'Peachy Keen', colors: ['#FF9A56','#FFBE76'], angle: 180 },
+      { name: 'Neon Nights', colors: ['#FF006E','#8338EC'], angle: 135 },
+      { name: 'Emerald Sea', colors: ['#08AEEA','#2AF598'], angle: 90 },
+      { name: 'Lavender Dream', colors: ['#B993D6','#8CA6DB'], angle: 120 },
+      { name: 'Cosmic Dust', colors: ['#7F00FF','#E100FF'], angle: 45 },
+      { name: 'Mango Tango', colors: ['#FF8008','#FFC837'], angle: 90 },
+      { name: 'Sky Blue', colors: ['#56CCF2','#2F80ED'], angle: 180 },
+      { name: 'Rose Gold', colors: ['#F093FB','#F5576C'], angle: 135 },
+      { name: 'Mint Fresh', colors: ['#A8EDEA','#FED6E3'], angle: 120 },
+      { name: 'Electric Violet', colors: ['#4776E6','#8E54E9'], angle: 45 },
+      { name: 'Citrus Burst', colors: ['#FDFC47','#24FE41'], angle: 90 },
+      { name: 'Cherry Blossom', colors: ['#FBC2EB','#A6C1EE'], angle: 135 },
+      { name: 'Aqua Marine', colors: ['#1CB5E0','#000851'], angle: 180 },
+      { name: 'Golden Hour', colors: ['#FDBB2D','#22C1C3'], angle: 45 },
+      { name: 'Berry Smoothie', colors: ['#E94057','#8A2387'], angle: 120 },
+      { name: 'Ice Blue', colors: ['#AAFFA9','#11FFBD'], angle: 90 },
+      { name: 'Sunset Purple', colors: ['#6D28D9','#DB2777'], angle: 135 },
+      { name: 'Coral Reef', colors: ['#FF7E5F','#FEB47B'], angle: 180 },
+    ];
+    
+    // Load all gradients from backend API
+    async function loadAllGradients() {
+      try {
+        const response = await fetch('/api/gradients');
+        const data = await response.json();
+        if (data.success && data.gradients) {
+          ALL_GRADIENTS = data.gradients;
+          console.log('✅ Loaded all gradients from backend:', ALL_GRADIENTS.length);
+        } else {
+          throw new Error('Invalid response format');
+        }
+      } catch (error) {
+        console.warn('⚠️ Failed to load gradients from backend, using fallback:', error);
+        ALL_GRADIENTS = [...FALLBACK_GRADIENTS];
+      }
+      
+      // Initialize UI after gradients are loaded
+      initializeGradientUI();
+    }
+
+    const qs = (s)=>document.querySelector(s);
+    const bg = qs('#bg');
+    const avatar = qs('#avatar');
+    const nameEl = qs('#name');
+    const verifiedEl = qs('#verified');
+    const handleEl = qs('#handle');
+    const contentEl = qs('#content');
+    const dateEl = qs('#date');
+    const angleEl = qs('#angle');
+    const mixEl = qs('#mix');
+    const color1El = qs('#color1');
+    const color2El = qs('#color2');
+    const randomBtn = qs('#random');
+    const dlBtn = qs('#download');
+    const shareBtn = qs('#share');
+    const thumbs = qs('#gradThumbs');
+
+    const fmtDate = (iso)=>{
+      try{
+        const d = new Date(iso || Date.now());
+        const time = d.toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'});
+        const date = d.toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'});
+        return `${time} · ${date}`;
+      }catch{ return ''; }
+    };
+
+    let currentColors = [];
+    function setBg(angle, colors, mix=1, updateColorInputs=true){
+      const [c1,c2] = colors;
+      const mid = mix < 1 ? Math.round(mix*100) : 100;
+      bg.style.background = `linear-gradient(${angle}deg, ${c1} 0%, ${c2} ${mid}%)`;
+      currentColors = [c1, c2];
+      
+      // Update color inputs to match current colors (only when not triggered by color input)
+      if (updateColorInputs && color1El && color1El.value !== c1) color1El.value = c1;
+      if (updateColorInputs && color2El && color2El.value !== c2) color2El.value = c2;
+    }
+
+    function applyData(data){
+      const profile = data.profile || {};
+      nameEl.textContent = profile.name || 'Twitter User';
+      handleEl.textContent = `@${profile.handle || 'twitter_user'}`;
+      avatar.src = profile.avatar || avatar.src;
+      
+      // Verified badge is always visible
+      
+      contentEl.textContent = data.tweetContent || '';
+      dateEl.textContent = fmtDate(data.timestamp);
+
+      // Only apply gradient if we have gradients loaded
+      if (ALL_GRADIENTS.length > 0) {
+        const idx = Number(data.gradientIndex ?? 0) || 0;
+        const g = ALL_GRADIENTS[Math.max(0, Math.min(ALL_GRADIENTS.length - 1, idx))];
+        angleEl.value = g.angle;
+        setBg(g.angle, g.colors, 1);
+      }
+    }
+
+    // Initialize gradient UI after gradients are loaded
+    function initializeGradientUI() {
+      // Clear existing thumbnails (but keep hidden)
+      thumbs.innerHTML = '';
+      
+      // Don't create thumbnails since they're hidden - just initialize with first gradient
+      if (ALL_GRADIENTS.length > 0) {
+        currentColors = ALL_GRADIENTS[0].colors.slice();
+        setBg(ALL_GRADIENTS[0].angle, ALL_GRADIENTS[0].colors, 1);
+      }
+    }
+
+    angleEl.addEventListener('input',()=>{
+      setBg(Number(angleEl.value), currentColors, Number(mixEl.value)/100);
+    });
+    mixEl.addEventListener('input',()=>{
+      setBg(Number(angleEl.value), currentColors, Number(mixEl.value)/100);
+    });
+    color1El.addEventListener('input',()=>{
+      const newColors = [color1El.value, color2El.value];
+      currentColors = newColors;
+      setBg(Number(angleEl.value), newColors, Number(mixEl.value)/100, false);
+    });
+    color2El.addEventListener('input',()=>{
+      const newColors = [color1El.value, color2El.value];
+      currentColors = newColors;
+      setBg(Number(angleEl.value), newColors, Number(mixEl.value)/100, false);
+    });
+    randomBtn.addEventListener('click',()=>{
+      if (ALL_GRADIENTS.length > 0) {
+        const i = Math.floor(Math.random()*ALL_GRADIENTS.length);
+        const g = ALL_GRADIENTS[i];
+        angleEl.value = g.angle;
+        
+        // Randomize mix value between 50% and 100%
+        const randomMix = Math.floor(Math.random() * 51) + 50; // 50-100 range
+        mixEl.value = randomMix;
+        
+        setBg(g.angle, g.colors, randomMix/100);
+      }
+    });
+    dlBtn.addEventListener('click', async ()=>{
+      const card = document.getElementById('card');
+      const controlsPanel = document.querySelector('.controls-panel');
+      const originalPanelStyle = controlsPanel ? controlsPanel.style.display : '';
+      
+      // Hide controls panel for clean capture
+      if (controlsPanel) controlsPanel.style.display = 'none';
+      
+      // Temporarily adjust background container for centered card (both horizontal and vertical)
+      const bgNode = document.getElementById('bg');
+      const originalBgStyle = bgNode.style.cssText;
+      bgNode.style.justifyContent = 'center';
+      bgNode.style.alignItems = 'center';
+      bgNode.style.flexDirection = 'column';
+      
+      try {
+        // Capture just the gradient background with the clean card
+        const canvas = await html2canvas(bgNode, {
+          backgroundColor: null, 
+          scale: 2,
+          useCORS: true,
+          allowTaint: true,
+          logging: false
+        });
+        const a = document.createElement('a');
+        a.href = canvas.toDataURL('image/png');
+        a.download = 'tweet.png';
+        a.click();
+      } finally {
+        // Restore original state
+        if (controlsPanel) controlsPanel.style.display = originalPanelStyle;
+        bgNode.style.cssText = originalBgStyle;
+      }
+    });
+    shareBtn.addEventListener('click', async ()=>{
+      const card = document.getElementById('card');
+      const controlsPanel = document.querySelector('.controls-panel');
+      const originalPanelStyle = controlsPanel ? controlsPanel.style.display : '';
+      
+      // Hide controls panel for clean capture
+      if (controlsPanel) controlsPanel.style.display = 'none';
+      
+      // Temporarily adjust background container for centered card (both horizontal and vertical)
+      const bgNode = document.getElementById('bg');
+      const originalBgStyle = bgNode.style.cssText;
+      bgNode.style.justifyContent = 'center';
+      bgNode.style.alignItems = 'center';
+      bgNode.style.flexDirection = 'column';
+      
+      try{
+        const canvas = await html2canvas(bgNode, {
+          backgroundColor: null, 
+          scale: 2,
+          useCORS: true,
+          allowTaint: true,
+          logging: false
+        });
+        const dataUrl = canvas.toDataURL('image/png');
+        const res = await fetch('/api/upload-image', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ image: dataUrl })
+        });
+        const out = await res.json();
+        if (out && out.url){
+          // Get the tweet content to include in the share
+          const tweetContent = contentEl.textContent || '';
+          
+          // Create a sharing URL that will make Twitter display the image properly
+          // Twitter will fetch the image and show it as an attached photo
+          const shareText = tweetContent ? `${tweetContent} ${out.url}` : out.url;
+          const encodedText = encodeURIComponent(shareText);
+          
+          // Twitter will automatically fetch and display the image from the URL
+          const u = `https://twitter.com/intent/tweet?text=${encodedText}`;
+          window.open(u,'_blank','noopener,noreferrer');
+        }
+      }catch(e){
+        console.error('Share failed', e);
+      } finally {
+        // Restore original state
+        if (controlsPanel) controlsPanel.style.display = originalPanelStyle;
+        bgNode.style.cssText = originalBgStyle;
+      }
+    });
+
+    // Initialize everything - load gradients first, then apply data
+    async function initializeApp() {
+      // Load all gradients from backend first
+      await loadAllGradients();
+      
+      // Now apply data to the UI
+      initFromOAI();
+    }
+    
+    // Apps SDK hydration
+    function initFromOAI() {
+      try{
+        const w = window.oai || {};
+        if (w && w.widget && typeof w.widget.getStructuredContent === 'function'){
+          const data = w.widget.getStructuredContent() || {};
+          applyData(data);
+          return;
+        }
+      }catch{}
+      // fallback: parse query params for local dev
+      try{
+        const p = new URLSearchParams(location.search);
+        const mock = {
+          tweetContent: p.get('text') || 'Hello world!',
+          gradientIndex: Number(p.get('g')||0),
+          profile: { name: p.get('name')||'Twitter User', handle: p.get('handle')||'twitter_user', avatar: p.get('avatar')||'', verified: p.get('v')==='1' },
+          timestamp: new Date().toISOString()
+        };
+        applyData(mock);
+      }catch{}
+    }
+    
+    // Start the application
+    initializeApp();
+  </script>
+  </body>
+  </html>
