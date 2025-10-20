@@ -144,4 +144,26 @@ def get_gradient_by_name(name: str) -> dict:
             return gradient
     return GRADIENTS[0]  # Default
 
-__all__ = ['GRADIENTS', 'get_gradient_css', 'get_gradient_by_name']
+# Hero gradient indexes - these are the 8 best gradients for tweets
+HERO_GRADIENT_INDEXES = [
+    0,   # Sunset Blaze
+    1,   # Ocean Deep
+    3,   # Purple Haze
+    4,   # Fire Burst
+    9,   # Emerald Sea
+    12,  # Mango Tango
+    14,  # Rose Gold
+    24,  # Coral Reef
+]
+
+def get_hero_gradient(index: int) -> dict:
+    """Return one of the 8 hero gradients by safe index (0..7)."""
+    if not 0 <= index < len(HERO_GRADIENT_INDEXES):
+        index = 0
+    return GRADIENTS[HERO_GRADIENT_INDEXES[index]]
+
+def get_hero_gradients() -> list:
+    """Return all 8 hero gradients."""
+    return [GRADIENTS[idx] for idx in HERO_GRADIENT_INDEXES]
+
+__all__ = ['GRADIENTS', 'get_gradient_css', 'get_gradient_by_name', 'HERO_GRADIENT_INDEXES', 'get_hero_gradient', 'get_hero_gradients']

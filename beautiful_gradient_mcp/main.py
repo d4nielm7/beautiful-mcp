@@ -4,6 +4,7 @@ import os
 import json
 import uuid
 from typing import Any, Dict, List, Optional
+from datetime import datetime
 
 import mcp.types as types
 from mcp.server.fastmcp import FastMCP
@@ -31,7 +32,12 @@ STYTCH_AUTHORIZATION_SERVER = os.getenv(
     "STYTCH_AUTHORIZATION_SERVER",
     "https://decorous-scale-5822.customers.stytch.dev"
 )
-MCP_SERVER_URL = os.getenv("MCP_SERVER_URL", "http://localhost:8000")
+# Auto-detect HTTPS based on environment or manual override
+DEFAULT_PROTOCOL = "https" if os.getenv("USE_HTTPS", "false").lower() == "true" else "http"
+DEFAULT_PORT = os.getenv("SERVER_PORT", "8000")
+DEFAULT_HOST = os.getenv("SERVER_HOST", "localhost")
+
+MCP_SERVER_URL = os.getenv("MCP_SERVER_URL", f"{DEFAULT_PROTOCOL}://{DEFAULT_HOST}:{DEFAULT_PORT}")
 
 # OAuth endpoints (legacy - kept for reference)
 OAUTH_AUTHORIZE_URL = "https://test.stytch.com/v1/public/oauth/authorize"
@@ -367,16 +373,57 @@ async def handle_create_gradient_tweet(
         "tweetContent": tweet_content,
         "gradientIndex": gradient_index,
         "gradientName": gradient['name'],
-        "profile": twitter_data
+        "profile": twitter_data,
+        "timestamp": datetime.utcnow().isoformat() + "Z",
+        "widgetUrl": f"{MCP_SERVER_URL}/widget/gradient-tweet"
     }
 
     # Text response
     text_response = f"Created gradient tweet with {gradient['name']} gradient!"
 
+    # Read widget HTML content
+    widget_html = ""
+    try:
+        widget_path = os.path.join(os.path.dirname(__file__), "widgets", "gradient_tweet.html")
+        with open(widget_path, 'r', encoding='utf-8') as f:
+            widget_html = f.read()
+    except Exception as e:
+        mcp_logger.warning(f"Could not read widget HTML: {e}")
+        widget_html = "<p>Widget HTML not available</p>"
+
     mcp_logger.info(f"✅ Tool executed successfully [{request_id}]")
     mcp_logger.debug(f"Structured content: {json.dumps(structured_content, indent=2)}")
     mcp_logger.info("=" * 80)
 
+    # Return content that will display the HTML widget inline
+    # This approach should work for MCP inline HTML rendering
+    content_items = [
+        types.TextContent(
+            type="text",
+            text=text_response
+        )
+    ]
+    
+    # Try to include the HTML widget for inline display
+    # The MCP system should render HTML content inline when properly formatted
+    if widget_html and widget_html != "<p>Widget HTML not available</p>":
+        try:
+            # Attempt to add HTML content that the MCP client can render inline
+            # Based on MCP specifications, this should work for widget rendering
+            content_items.append(
+                types.TextContent(
+                    type="text",
+                    text=widget_html
+                )
+            )
+        except Exception as e:
+            mcp_logger.warning(f"Failed to add HTML content: {e}")
+
+    # For inline HTML widget display, we need to return the content in a specific way
+    # The MCP system should render HTML widgets inline when properly formatted
+    
+    # Create the response with HTML content for inline rendering
+    # The key is to include the HTML in a way that triggers inline widget rendering
     return types.ServerResult(
         types.CallToolResult(
             content=[
@@ -384,11 +431,23 @@ async def handle_create_gradient_tweet(
                     type="text",
                     text=text_response
                 )
-            ],
-            structuredContent=structured_content,
+            ] + ([
+                types.TextContent(
+                    type="text",
+                    text=widget_html
+                )
+            ] if widget_html and widget_html != "<p>Widget HTML not available</p>" else []),
+            structuredContent={
+                **structured_content,
+                # Include widget HTML in structured content for MCP widget handling
+                "widget_html": widget_html if widget_html and widget_html != "<p>Widget HTML not available</p>" else None
+            },
             _meta={
                 "openai/widgetAccessible": True,
-                "openai/resultCanProduceWidget": True
+                "openai/resultCanProduceWidget": True,
+                # Add metadata to indicate this should render as an inline widget
+                "widget_type": "html",
+                "inline_render": True
             }
         )
     )
@@ -495,6 +554,60 @@ async def save_profile(request):
         )
 
 
+# API endpoint to get all 25 gradients for the widget
+@app.route("/api/gradients", methods=["GET"])
+async def get_all_gradients_api(request):
+    """Get all 25 gradients for the widget."""
+    from starlette.responses import JSONResponse
+    
+    try:
+        return JSONResponse({
+            "success": True,
+            "gradients": GRADIENTS,
+            "count": len(GRADIENTS)
+        })
+    except Exception as e:
+        mcp_logger.error(f"❌ Failed to get gradients: {str(e)}")
+        return JSONResponse(
+            {"success": False, "message": f"Error: {str(e)}"},
+            status_code=500
+        )
+
+
+# API endpoint to handle image uploads for sharing
+@app.route("/api/upload-image", methods=["POST"])
+async def upload_image(request):
+    """Handle image uploads for sharing functionality."""
+    from starlette.responses import JSONResponse
+    
+    try:
+        # For now, return a mock URL since we don't have actual image hosting
+        # In a real implementation, you'd upload to a service like Cloudinary, AWS S3, etc.
+        return JSONResponse({
+            "success": True,
+            "url": "https://example.com/uploaded-image.png",
+            "message": "Image upload not implemented yet"
+        })
+    except Exception as e:
+        mcp_logger.error(f"❌ Failed to upload image: {str(e)}")
+        return JSONResponse(
+            {"success": False, "message": f"Error: {str(e)}"},
+            status_code=500
+        )
+
+
+# Serve widget HTML
+@app.route("/widget/gradient-tweet")
+async def serve_gradient_widget(request):
+    """Serve the gradient tweet widget HTML."""
+    try:
+        widget_path = os.path.join(os.path.dirname(__file__), "widgets", "gradient_tweet.html")
+        return FileResponse(widget_path)
+    except Exception as e:
+        mcp_logger.error(f"❌ Failed to serve widget: {str(e)}")
+        return HTMLResponse("<p>Widget not available</p>", status_code=404)
+
+
 # Serve index.html at /login
 @app.route("/login")
 async def login_page(request):
@@ -526,5 +639,29 @@ def log_startup():
 
 if __name__ == "__main__":
     import uvicorn
+    
+    # HTTPS Configuration
+    SSL_CERT_PATH = os.getenv("SSL_CERT_PATH", "")
+    SSL_KEY_PATH = os.getenv("SSL_KEY_PATH", "")
+    SERVER_PORT = int(os.getenv("SERVER_PORT", "8000"))
+    USE_HTTPS = os.getenv("USE_HTTPS", "false").lower() == "true"
+    
     log_startup()
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+    
+    # Determine if we should use HTTPS based on environment or file presence
+    use_ssl = USE_HTTPS or (SSL_CERT_PATH and SSL_KEY_PATH and os.path.exists(SSL_CERT_PATH) and os.path.exists(SSL_KEY_PATH))
+    
+    if use_ssl and SSL_CERT_PATH and SSL_KEY_PATH:
+        startup_logger.info(f"🔒 Starting with HTTPS using certificates: {SSL_CERT_PATH}")
+        uvicorn.run(
+            "main:app", 
+            host="0.0.0.0", 
+            port=SERVER_PORT, 
+            reload=True,
+            ssl_keyfile=SSL_KEY_PATH,
+            ssl_certfile=SSL_CERT_PATH
+        )
+    else:
+        startup_logger.info(f"🌐 Starting with HTTP on port {SERVER_PORT}")
+        startup_logger.info("💡 For HTTPS, set USE_HTTPS=true and provide SSL_CERT_PATH and SSL_KEY_PATH")
+        uvicorn.run("main:app", host="0.0.0.0", port=SERVER_PORT, reload=True)
